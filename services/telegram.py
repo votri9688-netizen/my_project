@@ -43,7 +43,7 @@ class TelegramNotifier:
             f"🎬 <b>Tiêu đề:</b> {reel_title}\n"
             f"🆔 <b>FB Video ID:</b> <code>{fb_video_id}</code>\n"
             f"🔗 <b>Xem Reel:</b> <a href='{post_url}'>Bấm vào đây để xem</a>\n\n"
-            f"⏱ <i>Reels AutoBot System v1.0.0</i>"
+            f"📱 <i>Điều khiển từ xa qua bot: Gõ /status hoặc /pages</i>"
         )
         return self.send_message(msg)
 
@@ -52,7 +52,7 @@ class TelegramNotifier:
             f"⚠️ <b>LỖI PIPELINE XỬ LÝ VIDEO!</b>\n\n"
             f"📌 <b>Fanpage:</b> <i>{page_name}</i>\n"
             f"❌ <b>Chi tiết lỗi:</b>\n<code>{error_detail}</code>\n\n"
-            f"🚨 <i>Vui lòng kiểm tra log hệ thống!</i>"
+            f"🚨 <i>Vui lòng gõ /status để kiểm tra hệ thống!</i>"
         )
         return self.send_message(msg)
 

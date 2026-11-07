@@ -34,11 +34,11 @@ export default function DashboardPage() {
     try {
       setProcessingId(id);
       setMessage(null);
-      const res = await fanpageApi.process(id, 'Trending Viral Entertainment');
-      setMessage(`Processing queued for ${name}! Reel #${res.data.reel_id}`);
+      const res = await fanpageApi.process(id, 'Xu Hướng Hot');
+      setMessage(`Đã kích hoạt Reel cho kênh "${name}"! ID: #${res.data.reel_id}`);
       loadData();
     } catch (err) {
-      setMessage(`Failed to trigger: ${err.response?.data?.detail || err.message}`);
+      setMessage(`Lỗi kích hoạt: ${err.response?.data?.detail || err.message}`);
     } finally {
       setProcessingId(null);
     }
@@ -51,82 +51,88 @@ export default function DashboardPage() {
   return (
     <div>
       <Header
-        title="System Overview"
-        subtitle="Automated Facebook Reels, AI Content & Celery Workers"
+        title="Tổng Quan Hệ Thống"
+        subtitle="Tự động hóa Reels Facebook, AI Captioning & Celery Workers"
       />
 
-      <div className="p-8 space-y-8 max-w-7xl mx-auto">
+      <div className="p-4 md:p-8 space-y-4 md:space-y-6 max-w-7xl mx-auto">
         {message && (
-          <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm flex items-center justify-between">
+          <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs md:text-sm flex items-center justify-between shadow-xs">
             <span>{message}</span>
-            <button onClick={() => setMessage(null)} className="font-bold ml-4">✕</button>
+            <button onClick={() => setMessage(null)} className="font-bold ml-3 p-1">✕</button>
           </div>
         )}
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <span className="text-slate-500 text-sm font-medium">Total Fanpages</span>
-            <div className="text-3xl font-bold text-slate-800 mt-2">{fanpages.length}</div>
-            <span className="text-xs text-emerald-600 font-semibold mt-1 inline-block">
-              {activeCount} active pages
+        {/* Stats Grid: 2 columns on Mobile, 4 columns on Desktop */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
+          <div className="bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <span className="text-slate-500 text-xs font-medium">Tổng Kênh Fanpage</span>
+            <div className="text-2xl md:text-3xl font-extrabold text-slate-800 mt-1">{fanpages.length}</div>
+            <span className="text-[11px] text-emerald-600 font-semibold mt-1 inline-block">
+              {activeCount} kênh bật
             </span>
           </div>
 
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <span className="text-slate-500 text-sm font-medium">Reels Published</span>
-            <div className="text-3xl font-bold text-slate-800 mt-2">{publishedReels}</div>
-            <span className="text-xs text-blue-600 font-semibold mt-1 inline-block">
-              {reels.length} total generated
+          <div className="bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <span className="text-slate-500 text-xs font-medium">Reels Xuất Bản</span>
+            <div className="text-2xl md:text-3xl font-extrabold text-slate-800 mt-1">{publishedReels}</div>
+            <span className="text-[11px] text-blue-600 font-semibold mt-1 inline-block">
+              {reels.length} tổng số bài
             </span>
           </div>
 
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <span className="text-slate-500 text-sm font-medium">Daily Quota Capacity</span>
-            <div className="text-3xl font-bold text-slate-800 mt-2">{totalQuota}</div>
-            <span className="text-xs text-slate-500 mt-1 inline-block">Posts/day limit</span>
+          <div className="bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <span className="text-slate-500 text-xs font-medium">Hạn Mức Trong Ngày</span>
+            <div className="text-2xl md:text-3xl font-extrabold text-slate-800 mt-1">{totalQuota}</div>
+            <span className="text-[11px] text-slate-500 mt-1 inline-block">Reels / ngày</span>
           </div>
 
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <span className="text-slate-500 text-sm font-medium">Celery Engine</span>
-            <div className="text-3xl font-bold text-emerald-600 mt-2">Active</div>
-            <span className="text-xs text-slate-500 mt-1 inline-block">FFmpeg + Redis ready</span>
+          <div className="bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <span className="text-slate-500 text-xs font-medium">Celery + Groq AI</span>
+            <div className="text-2xl md:text-3xl font-extrabold text-emerald-600 mt-1">Sẵn Sàng</div>
+            <span className="text-[11px] text-slate-500 mt-1 inline-block">LLaMA 3.3 Active</span>
           </div>
         </div>
 
-        {/* Active Fanpages Quick Execution */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
-            <h3 className="font-semibold text-slate-800">Quick Reel Dispatch</h3>
-            <span className="text-xs text-slate-500">Trigger FFmpeg + AI Caption + Meta Graph API</span>
+        {/* Quick Dispatch Section */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="px-4 py-3.5 md:px-6 md:py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <div>
+              <h3 className="font-bold text-sm md:text-base text-slate-800">Kích Hoạt Nhanh Kênh Reel</h3>
+              <p className="text-[11px] text-slate-500">Render FFmpeg + Groq AI Caption + Đăng Meta Graph API</p>
+            </div>
           </div>
 
           <div className="divide-y divide-slate-100">
             {fanpages.length === 0 ? (
-              <div className="p-8 text-center text-slate-400">
-                No fanpages added yet. Head over to the Fanpages tab to create one.
+              <div className="p-8 text-center text-slate-400 text-sm">
+                Đang tải dữ liệu kênh...
               </div>
             ) : (
               fanpages.map((fan) => (
-                <div key={fan.id} className="p-4 px-6 flex items-center justify-between hover:bg-slate-50 transition">
+                <div
+                  key={fan.id}
+                  className="p-3.5 px-4 md:p-4 md:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/80 transition"
+                >
                   <div>
-                    <div className="font-semibold text-slate-800 flex items-center space-x-2">
+                    <div className="font-bold text-sm text-slate-900 flex items-center space-x-2">
                       <span>{fan.name}</span>
-                      <span className={`px-2 py-0.5 text-xs rounded-full ${fan.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                        {fan.active ? 'Active' : 'Disabled'}
+                      <span className={`px-2 py-0.5 text-[10px] rounded-full font-semibold ${fan.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                        {fan.active ? 'Bật' : 'Tắt'}
                       </span>
                     </div>
                     <div className="text-xs text-slate-500 mt-0.5">
-                      Page ID: <code className="bg-slate-100 px-1 py-0.5 rounded">{fan.page_id}</code> | Daily Quota: {fan.quota}
+                      ID: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[11px]">{fan.page_id}</code> | Quota: {fan.quota} Reels
                     </div>
                   </div>
 
                   <button
                     disabled={!fan.active || processingId === fan.id}
                     onClick={() => handleQuickProcess(fan.id, fan.name)}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white text-xs font-semibold rounded-lg shadow-sm transition"
+                    className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-semibold rounded-xl shadow-xs transition min-h-[44px] flex items-center justify-center space-x-1.5 touch-manipulation"
                   >
-                    {processingId === fan.id ? 'Starting...' : '⚡ Process & Publish'}
+                    <span>⚡</span>
+                    <span>{processingId === fan.id ? 'Đang Xử Lý...' : 'Đăng Reel Ngay'}</span>
                   </button>
                 </div>
               ))
