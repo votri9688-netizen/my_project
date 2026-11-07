@@ -45,7 +45,7 @@ describe('Fanpage Automation & Video Processing E2E Suite', () => {
       // Step 2: Trigger Celery Video Process
       cy.request({
         method: 'POST',
-        url: `${apiUrl}/fanpages/${fanpageId}/process`
+        url: `${apiUrl}/fanpages/${fanpageId}/process?topic=Viral%20Entertainment`
       }).then((procRes) => {
         expect(procRes.status).to.eq(200);
         expect(procRes.body.msg).to.eq('Processing started');
@@ -54,7 +54,6 @@ describe('Fanpage Automation & Video Processing E2E Suite', () => {
 
       // Step 3: Mock Meta Graph API Publish Reel
       cy.window().then((win) => {
-        // Simulate client-side or backend call to Meta Graph API
         return fetch(`https://graph.facebook.com/v19.0/${testPageId}/video_reels`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -71,7 +70,12 @@ describe('Fanpage Automation & Video Processing E2E Suite', () => {
     });
   });
 
-  it('Verifies Prometheus metrics endpoint is exposed and healthy', () => {
+  it('Verifies Reels log and Prometheus metrics endpoints', () => {
+    cy.request(`${apiUrl}/reels/`).then((res) => {
+      expect(res.status).to.eq(200);
+      expect(res.body).to.be.an('array');
+    });
+
     cy.request(`${apiUrl}/metrics`).then((response) => {
       expect(response.status).to.eq(200);
       expect(response.body).to.include('http_request_duration_seconds');

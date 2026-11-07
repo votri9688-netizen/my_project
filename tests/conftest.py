@@ -15,6 +15,7 @@ if project_root not in sys.path:
 
 from database import Base, SessionLocal, engine
 from app import app, get_db
+import auth
 from celery_app import app as celery_app
 
 celery_app.conf.update(
@@ -48,6 +49,7 @@ def db_session():
             pass
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[auth.get_db] = override_get_db
     yield session
     
     session.close()

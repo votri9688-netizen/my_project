@@ -14,3 +14,7 @@ openai
 google-generativeai
 prometheus-fastapi-instrumentator
 pytest
+pyjwt[crypto]
+bcrypt
+passlib[bcrypt]
+python-multipart
