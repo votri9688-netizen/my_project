@@ -9,6 +9,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
   redis:
     image: redis:7
@@ -22,33 +23,56 @@ services:
     env_file: .env
     environment:
       - DATABASE_URL=postgresql://user:password@db:5432/mydb
-      - REDIS_URL=${REDIS_URL}
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_API_KEY_BACKUP=${GROQ_API_KEY_BACKUP}
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}
+      - INSTAGRAM_USER_TOKEN=${INSTAGRAM_USER_TOKEN}
+      - META_USER_ACCESS_TOKEN=${META_USER_ACCESS_TOKEN}
+      - PUBLISH_MODE=${PUBLISH_MODE}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - AES_ENCRYPTION_KEY=${AES_ENCRYPTION_KEY}
     depends_on:
       - db
       - redis
       - celery
       - beat
+
   celery:
     build: .
-    command: celery -A celery_app worker --loglevel=info
+    command: celery -A celery_app worker --loglevel=info -c 4
     env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/mydb
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_API_KEY_BACKUP=${GROQ_API_KEY_BACKUP}
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}
+      - INSTAGRAM_USER_TOKEN=${INSTAGRAM_USER_TOKEN}
+      - META_USER_ACCESS_TOKEN=${META_USER_ACCESS_TOKEN}
+      - PUBLISH_MODE=${PUBLISH_MODE}
+      - AES_ENCRYPTION_KEY=${AES_ENCRYPTION_KEY}
     depends_on:
       - redis
       - db
-    environment:
-      - REDIS_URL=${REDIS_URL}
     volumes:
       - .:/app
+      - /tmp/video_buffer:/tmp/video_buffer
+
   beat:
     build: .
     command: celery -A celery_app beat --loglevel=info
     env_file: .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://user:password@db:5432/mydb
     depends_on:
       - redis
       - db
-    environment:
-      - REDIS_URL=${REDIS_URL}
     volumes:
       - .:/app
+
 volumes:
   pgdata:

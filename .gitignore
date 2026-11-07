@@ -12,6 +12,7 @@ __pycache__/
 # Pytest & testing
 .pytest_cache/
 test.db
+app.db
 .coverage
 htmlcov/
 
@@ -31,5 +32,6 @@ node_modules/
 .next/
 dashboard/node_modules/
 dashboard/.next/
+dashboard/.env.local
 dashboard/cypress/videos/
 dashboard/cypress/screenshots/

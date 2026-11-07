@@ -8,8 +8,10 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 try:
     from . import models, schemas, database, auth
+    from .utils.crypto import encrypt_token, decrypt_token, mask_token
 except (ImportError, ValueError):
     import models, schemas, database, auth
+    from utils.crypto import encrypt_token, decrypt_token, mask_token
 
 # Auto create tables if not present
 models.Base.metadata.create_all(bind=database.engine)
@@ -30,6 +32,11 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def format_fanpage(fan: models.Fanpage) -> schemas.Fanpage:
+    res = schemas.Fanpage.model_validate(fan)
+    res.access_token_masked = mask_token(decrypt_token(fan.access_token))
+    return res
 
 # --- HEALTH & STATUS ---
 @app.get("/")
@@ -91,12 +98,15 @@ def create_fanpage(fanpage: schemas.FanpageCreate, db: Session = Depends(get_db)
     if existing:
         raise HTTPException(status_code=400, detail="Fanpage with this page_id already exists")
     
+    # Encrypt access token before storing
+    encrypted_token = encrypt_token(fanpage.access_token)
+    
     db_fanpage = models.Fanpage(
         name=fanpage.name,
         page_id=fanpage.page_id,
         quota=fanpage.quota,
         active=fanpage.active,
-        access_token=fanpage.access_token
+        access_token=encrypted_token
     )
     db.add(db_fanpage)
     db.commit()
@@ -113,18 +123,19 @@ def create_fanpage(fanpage: schemas.FanpageCreate, db: Session = Depends(get_db)
     db.add(log)
     db.commit()
     db.refresh(db_fanpage)
-    return db_fanpage
+    return format_fanpage(db_fanpage)
 
 @app.get("/fanpages/", response_model=List[schemas.Fanpage])
 def list_fanpages(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(models.Fanpage).offset(skip).limit(limit).all()
+    fans = db.query(models.Fanpage).offset(skip).limit(limit).all()
+    return [format_fanpage(f) for f in fans]
 
 @app.get("/fanpages/{fanpage_id}", response_model=schemas.Fanpage)
 def get_fanpage(fanpage_id: int, db: Session = Depends(get_db)):
     fan = db.query(models.Fanpage).filter(models.Fanpage.id == fanpage_id).first()
     if not fan:
         raise HTTPException(status_code=404, detail="Fanpage not found")
-    return fan
+    return format_fanpage(fan)
 
 @app.put("/fanpages/{fanpage_id}", response_model=schemas.Fanpage)
 def update_fanpage(fanpage_id: int, fan_in: schemas.FanpageUpdate, db: Session = Depends(get_db)):
@@ -139,11 +150,11 @@ def update_fanpage(fanpage_id: int, fan_in: schemas.FanpageUpdate, db: Session =
     if fan_in.active is not None:
         fan.active = fan_in.active
     if fan_in.access_token is not None:
-        fan.access_token = fan_in.access_token
+        fan.access_token = encrypt_token(fan_in.access_token)
         
     db.commit()
     db.refresh(fan)
-    return fan
+    return format_fanpage(fan)
 
 # --- REEL POSTS & PROCESSING ---
 @app.get("/reels/", response_model=List[schemas.ReelPostOut])
@@ -199,6 +210,9 @@ def process_fanpage(
     db.commit()
     db.refresh(reel)
 
+    # Decrypt token for pipeline execution
+    decrypted_token = decrypt_token(fan.access_token)
+
     # Trigger Celery pipeline
     try:
         from tasks import process_video_pipeline
@@ -206,11 +220,10 @@ def process_fanpage(
             reel_id=reel.id,
             fanpage_id=fan.id,
             page_id=fan.page_id,
-            access_token=fan.access_token,
+            access_token=decrypted_token,
             topic=topic
         )
     except Exception as e:
-        # Fallback for dev / mock testing
         reel.status = "processing_enqueued"
         db.commit()
 

@@ -1,6 +1,6 @@
 from typing import Optional, List
 from datetime import datetime, date
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 # --- USER SCHEMAS ---
 class UserBase(BaseModel):
@@ -58,7 +58,7 @@ class QuotaLogOut(BaseModel):
 class FanpageBase(BaseModel):
     name: str
     page_id: str
-    quota: int = 10
+    quota: int = 5
     active: bool = True
 
 class FanpageCreate(FanpageBase):
@@ -72,6 +72,7 @@ class FanpageUpdate(BaseModel):
 
 class Fanpage(FanpageBase):
     id: int
+    access_token_masked: Optional[str] = None
     created_at: Optional[datetime] = None
     reels: List[ReelPostOut] = []
     quota_logs: List[QuotaLogOut] = []

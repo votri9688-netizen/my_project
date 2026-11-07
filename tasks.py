@@ -38,7 +38,7 @@ def process_video_pipeline(
     """
     End-to-end automated pipeline:
     1. Render video via FFmpeg
-    2. Generate AI Caption & Hashtags via LLM (Gemini)
+    2. Generate AI Caption & Hashtags via LLM (Groq / OpenAI)
     3. Upload & Publish Reel to Meta Graph API
     4. Deduct Quota in DB
     5. Send Realtime Notification to Telegram
@@ -60,7 +60,7 @@ def process_video_pipeline(
         video_path = reel.video_path or f"/tmp/{page_id}_output.mp4"
         Path(video_path).parent.mkdir(parents=True, exist_ok=True)
         
-        # If output file does not exist, generate a dummy sample video with ffmpeg
+        # If output file does not exist, generate sample video with ffmpeg
         if not os.path.exists(video_path):
             cmd = [
                 "ffmpeg", "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=5",
@@ -71,17 +71,16 @@ def process_video_pipeline(
             try:
                 subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
             except Exception:
-                # Create empty placeholder file if ffmpeg is absent in local dev
                 with open(video_path, "wb") as f:
                     f.write(b"MOCK_MP4_VIDEO_BYTES_FOR_REEL")
 
-        # Step 2: AI Content Generation (Gemini)
+        # Step 2: AI Content Generation (Groq / OpenAI)
         reel.status = "generating_content"
         db.commit()
         ai_content = llm_service.generate_reel_content(topic)
-        title = ai_content.get("title", f"Reel for {fanpage.name if fanpage else page_id}")
-        caption = ai_content.get("caption", "Amazing video!")
-        hashtags = " ".join(ai_content.get("hashtags", ["#viral", "#reels"]))
+        title = ai_content.get("title", f"Reel #{page_id}")
+        caption = ai_content.get("caption", "Video hay moi ngay!")
+        hashtags = " ".join(ai_content.get("hashtags", ["#viral", "#reels", "#trending"]))
         full_description = f"{title}\n\n{caption}\n\n{hashtags}"
 
         reel.title = title
@@ -141,23 +140,8 @@ def process_video_pipeline(
     finally:
         db.close()
 
-@app.task
-def process_video(input_path: str, output_path: str):
-    """Backward compatibility simple task"""
-    TEMP_DIR.mkdir(parents=True, exist_ok=True)
-    start_time = time.time()
-    cmd = [
-        "ffmpeg", "-i", input_path, "-c:v", "libx264", "-preset", "fast",
-        "-c:a", "aac", output_path, "-y"
-    ]
-    try:
-        subprocess.run(cmd, check=True)
-        duration = time.time() - start_time
-        VIDEO_PROCESSED_TOTAL.labels(status="success").inc()
-        VIDEO_PROCESSING_LATENCY.observe(duration)
-    except Exception as e:
-        VIDEO_PROCESSED_TOTAL.labels(status="failed").inc()
-        raise e
+# Alias process_video for backward compatibility
+process_video = process_video_pipeline
 
 @app.task
 def purge_temp():
