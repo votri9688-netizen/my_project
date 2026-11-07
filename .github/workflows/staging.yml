@@ -1,0 +1,105 @@
+name: Staging Deployment & Cypress E2E Testing
+
+on:
+  push:
+    branches: [ "staging", "main" ]
+  pull_request:
+    branches: [ "staging", "main" ]
+  workflow_dispatch:
+
+jobs:
+  unit-test:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest httpx
+
+      - name: Run Pytest Test Suite
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///./test.db"
+        run: |
+          pytest -v
+
+  staging-e2e:
+    name: Staging Stack & Cypress E2E Tests
+    needs: unit-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Prepare Staging Environment Variables
+        run: |
+          cp .env .env.staging || true
+          echo "POSTGRES_USER=user" >> .env
+          echo "POSTGRES_PASSWORD=password" >> .env
+          echo "POSTGRES_DB=mydb" >> .env
+          echo "REDIS_URL=redis://redis:6379/0" >> .env
+          echo "DATABASE_URL=postgresql://user:password@db:5432/mydb" >> .env
+
+      - name: Build and Start Staging Docker Stack
+        run: |
+          docker compose -f docker-compose.yml up -d --build
+
+      - name: Wait for API to become healthy
+        run: |
+          echo "Waiting for API on http://localhost:8000/status..."
+          for i in {1..30}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/status || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "API is ready!"
+              exit 0
+            fi
+            echo "Attempt $i: status is $STATUS, retrying in 2s..."
+            sleep 2
+          done
+          echo "Timeout waiting for API"
+          docker compose logs api
+          exit 1
+
+      - name: Set up Node.js for Cypress
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: dashboard/package.json
+
+      - name: Install Dashboard / Cypress Dependencies
+        run: |
+          cd dashboard
+          npm install
+
+      - name: Run Cypress E2E Tests
+        run: |
+          cd dashboard
+          npx cypress run --env API_URL=http://localhost:8000
+
+      - name: Upload Cypress Screenshots on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-screenshots
+          path: dashboard/cypress/screenshots
+          if-no-files-found: ignore
+
+      - name: Tear Down Staging Stack
+        if: always()
+        run: |
+          docker compose -f docker-compose.yml down -v

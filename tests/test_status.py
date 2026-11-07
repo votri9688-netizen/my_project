@@ -1,4 +1,3 @@
-# tests/test_status.py
 from fastapi.testclient import TestClient
 from app import app
 

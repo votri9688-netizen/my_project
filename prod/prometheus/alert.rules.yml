@@ -1,0 +1,29 @@
+groups:
+  - name: api_alerts
+    rules:
+      - alert: HttpServerError500
+        expr: increase(http_requests_total{status=~"5.."}[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP 500 Error Detected on {{ $labels.instance }}"
+          description: "API endpoint {{ $labels.handler }} returned HTTP 500 status code."
+
+      - alert: ApiDown
+        expr: up{job="api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API Service is Down"
+          description: "Prometheus cannot scrape the API service for more than 1 minute."
+
+      - alert: CeleryVideoProcessingHighLatency
+        expr: video_processing_latency_seconds_sum / video_processing_latency_seconds_count > 60
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Video processing latency is high"
+          description: "Average video rendering latency exceeded 60 seconds."

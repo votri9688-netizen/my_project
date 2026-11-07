@@ -1,0 +1,37 @@
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: '${SMTP_HOST:-smtp.gmail.com:587}'
+  smtp_from: '${SMTP_USER:-alerts@yourdomain.com}'
+  smtp_auth_username: '${SMTP_USER:-alerts@yourdomain.com}'
+  smtp_auth_password: '${SMTP_PASSWORD:-secret}'
+  smtp_require_tls: true
+
+route:
+  group_by: ['alertname', 'job', 'severity']
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1h
+  receiver: 'email-and-logs'
+
+receivers:
+  - name: 'email-and-logs'
+    email_configs:
+      - to: '${ALERT_EMAIL_TO:-admin@yourdomain.com}'
+        send_resolved: true
+        headers:
+          Subject: '[ALERT {{ .Status | toUpper }}] {{ .GroupLabels.alertname }} on {{ .GroupLabels.job }}'
+        html: |
+          <h2>Alert Triggered: {{ .GroupLabels.alertname }}</h2>
+          <p><strong>Severity:</strong> {{ .CommonLabels.severity }}</p>
+          <p><strong>Summary:</strong> {{ .CommonAnnotations.summary }}</p>
+          <p><strong>Description:</strong> {{ .CommonAnnotations.description }}</p>
+          <h3>Active Alerts:</h3>
+          <ul>
+          {{ range .Alerts }}
+            <li>
+              <b>Starts At:</b> {{ .StartsAt }}<br/>
+              <b>Labels:</b> {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}<br/>
+              <b>Annotations:</b> {{ range .Annotations.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}
+            </li>
+          {{ end }}
+          </ul>

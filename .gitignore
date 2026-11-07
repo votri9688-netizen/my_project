@@ -1,0 +1,35 @@
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# Python cache & compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+
+# Pytest & testing
+.pytest_cache/
+test.db
+.coverage
+htmlcov/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+.env_key
+
+# Docker & local backups
+backup/
+prod/backup/
+prod/certbot/
+
+# Node & Frontend
+node_modules/
+.next/
+dashboard/node_modules/
+dashboard/.next/
+dashboard/cypress/videos/
+dashboard/cypress/screenshots/

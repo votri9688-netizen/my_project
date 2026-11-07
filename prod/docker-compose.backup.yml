@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  db-backup:
+    image: postgres:15
+    env_file: ../.env
+    volumes:
+      - ./backup:/backup
+    command: >
+      sh -c "while true; do 
+        echo 'Running daily DB backup...';
+        pg_dump -h db -U $$POSTGRES_USER $$POSTGRES_DB > /backup/backup_$$(date +%F_%H-%M-%S).sql; 
+        echo 'Backup completed. Sleeping 24h...';
+        sleep 86400; 
+      done"
+    restart: unless-stopped
+    networks:
+      - default
+
+  s3-sync:
+    image: amazon/aws-cli:latest
+    env_file: ../.env
+    depends_on:
+      - db-backup
+    volumes:
+      - ./backup:/backup:ro
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-ap-southeast-1}
+      - S3_BACKUP_BUCKET=${S3_BACKUP_BUCKET:-myproject-db-backups}
+    command: >
+      sh -c "while true; do
+        echo 'Starting S3 sync...';
+        if [ -n \"$$AWS_ACCESS_KEY_ID\" ]; then
+          aws s3 sync /backup s3://$$S3_BACKUP_BUCKET/db-backups/ --delete;
+          echo 'S3 sync successful';
+        else
+          echo 'AWS credentials not provided. Skipping S3 sync.';
+        fi;
+        sleep 86400;
+      done"
+    restart: unless-stopped
+    networks:
+      - default
+
+networks:
+  default:
+    name: my_project_prod_net

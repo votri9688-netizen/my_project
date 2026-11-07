@@ -1,0 +1,101 @@
+{
+  "dashboard": {
+    "uid": "fastapi-dashboard",
+    "title": "FastAPI Production Dashboard",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "type": "graph",
+        "title": "HTTP Requests per Second",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "rate(fastapi_http_requests_total[1m])",
+            "legendFormat": "{{method}} {{endpoint}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8}
+      },
+      {
+        "type": "graph",
+        "title": "Request Latency (seconds)",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(fastapi_http_request_duration_seconds_bucket[5m])) by (le, method, endpoint))",
+            "legendFormat": "95th pct {{method}} {{endpoint}}",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(fastapi_http_request_duration_seconds_bucket[5m])) by (le, method, endpoint))",
+            "legendFormat": "99th pct {{method}} {{endpoint}}",
+            "refId": "C"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8}
+      },
+      {
+        "type": "graph",
+        "title": "HTTP 5xx Errors per Second",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "rate(fastapi_http_requests_total{http_status=~"5.."}[1m])",
+            "legendFormat": "{{method}} {{endpoint}}",
+            "refId": "D"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8}
+      },
+      {
+        "type": "graph",
+        "title": "Celery Processed Tasks",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "rate(celery_tasks_processed_total[1m])",
+            "legendFormat": "{{task_name}}",
+            "refId": "E"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8}
+      },
+      {
+        "type": "graph",
+        "title": "PostgreSQL Connections",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "pg_stat_activity_count",
+            "legendFormat": "connections",
+            "refId": "F"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8}
+      },
+      {
+        "type": "graph",
+        "title": "Redis Memory Used (bytes)",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "redis_memory_used_bytes",
+            "legendFormat": "memory",
+            "refId": "G"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8}
+      }
+    ],
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": []
+    }
+  }
+}
