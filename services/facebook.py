@@ -32,7 +32,7 @@ class MetaReelsService:
         Bước 2: Upload binary bytes video (upload_phase='transfer')
         Bước 3: Công bố Reel (upload_phase='finish' & video_state='PUBLISHED')
         """
-        token = access_token or self.default_access_token
+        token = access_token if access_token is not None else self.default_access_token
         is_live = PUBLISH_MODE == "LIVE" and os.getenv("TESTING") != "1"
 
         # Nếu không ở chế độ LIVE hoặc token không hợp lệ -> mock an toàn

@@ -22,10 +22,10 @@ class Fanpage(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
-    page_id = Column(String(100), unique=True, index=True, nullable=False)
+    page_id = Column("fb_page_id", String(100), unique=True, index=True, nullable=False)
     access_token = Column(Text, nullable=True)  # AES-256 encrypted
-    quota = Column(Integer, default=10)
-    active = Column(Boolean, default=True)
+    quota = Column("daily_quota", Integer, default=10)
+    active = Column("is_active", Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     quota_logs = relationship("QuotaLog", back_populates="fanpage", cascade="all, delete-orphan")

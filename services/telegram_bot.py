@@ -298,6 +298,11 @@ def create_bot_app():
     app.add_handler(MessageHandler(filters.VIDEO | filters.Document.VIDEO, handle_video_upload))
     return app
 
+class TelegramRemoteBot:
+    @staticmethod
+    def create_app():
+        return create_bot_app()
+
 if __name__ == "__main__":
     bot_app = create_bot_app()
     if bot_app:
