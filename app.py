@@ -102,6 +102,116 @@ def get_current_user_profile(current_user: models.User = Depends(auth.get_curren
     return current_user
 
 # --- FANPAGE MANAGEMENT ---
+@app.post("/fanpages/inspect-token")
+def inspect_token(data: dict):
+    """
+    Tự động kiểm tra Token từ Meta:
+    - Nếu là Page Token -> Tự động lấy Page ID thật và Tên Trang từ Meta!
+    - Nếu là User Token -> Trả về thông tin User và danh sách các Page có quyền quản trị!
+    """
+    token = data.get("token", "").strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="Vui lòng cung cấp Access Token")
+    
+    import httpx
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            res = client.get(f"https://graph.facebook.com/v19.0/me?fields=id,name&access_token={token}")
+            if res.status_code != 200:
+                err_data = res.json().get("error", {})
+                raise HTTPException(status_code=400, detail=f"Lỗi Meta: {err_data.get('message', 'Token không hợp lệ hoặc đã hết hạn')}")
+            me_info = res.json()
+            
+            # Thử lấy danh sách trang quản trị nếu đây là User Token
+            acc_res = client.get(f"https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token&limit=100&access_token={token}")
+            pages = []
+            if acc_res.status_code == 200:
+                pages = acc_res.json().get("data", [])
+            
+            is_user = len(pages) > 0
+            return {
+                "id": str(me_info.get("id")),
+                "name": me_info.get("name"),
+                "is_user": is_user,
+                "type": "User Account" if is_user else "Fanpage",
+                "managed_pages": [{"id": str(p["id"]), "name": p["name"]} for p in pages]
+            }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi kiểm tra token từ Meta: {str(e)}")
+
+@app.post("/fanpages/sync-meta")
+def sync_meta_fanpages(data: dict, db: Session = Depends(get_db)):
+    """
+    Đồng bộ 1-Click tất cả Fanpage từ Facebook vào hệ thống:
+    Tự động lấy ID thật, Tên thật, và cấp Page Access Token riêng cho từng trang.
+    """
+    token = data.get("user_token", "").strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="Vui lòng cung cấp User Access Token")
+    
+    import httpx
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            acc_res = client.get(f"https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,tasks&limit=100&access_token={token}")
+            if acc_res.status_code != 200:
+                err_data = acc_res.json().get("error", {})
+                raise HTTPException(status_code=400, detail=f"Lỗi Meta: {err_data.get('message', 'Token không hợp lệ')}")
+            
+            pages = acc_res.json().get("data", [])
+            if not pages:
+                raise HTTPException(status_code=400, detail="Không tìm thấy Fanpage nào được quản lý bởi tài khoản này.")
+            
+            synced_count = 0
+            created_count = 0
+            updated_count = 0
+            synced_pages = []
+            
+            for p in pages:
+                p_id = str(p["id"])
+                p_name = p["name"]
+                p_token = p["access_token"]
+                
+                # Tìm xem đã có Fanpage với ID này chưa
+                fan = db.query(models.Fanpage).filter(models.Fanpage.page_id == p_id).first()
+                if not fan:
+                    fan = db.query(models.Fanpage).filter(models.Fanpage.name == p_name).first()
+                
+                encrypted = encrypt_token(p_token)
+                if fan:
+                    fan.page_id = p_id
+                    fan.name = p_name
+                    fan.access_token = encrypted
+                    fan.active = True
+                    updated_count += 1
+                else:
+                    fan = models.Fanpage(
+                        name=p_name,
+                        page_id=p_id,
+                        quota=24,
+                        active=True,
+                        access_token=encrypted
+                    )
+                    db.add(fan)
+                    created_count += 1
+                
+                synced_pages.append({"name": p_name, "page_id": p_id})
+                synced_count += 1
+                
+            db.commit()
+            return {
+                "success": True,
+                "total_synced": synced_count,
+                "created": created_count,
+                "updated": updated_count,
+                "pages": synced_pages
+            }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi khi đồng bộ Meta: {str(e)}")
+
 @app.post("/fanpages/", response_model=schemas.Fanpage)
 def create_fanpage(fanpage: schemas.FanpageCreate, db: Session = Depends(get_db)):
     existing = db.query(models.Fanpage).filter(models.Fanpage.page_id == fanpage.page_id).first()

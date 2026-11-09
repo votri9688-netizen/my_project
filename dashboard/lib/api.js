@@ -27,6 +27,8 @@ export const fanpageApi = {
   create: (data) => api.post('/fanpages/', data),
   update: (id, data) => api.put(`/fanpages/${id}`, data),
   process: (id, topic) => api.post(`/fanpages/${id}/process${topic ? `?topic=${encodeURIComponent(topic)}` : ''}`),
+  inspectToken: (token) => api.post('/fanpages/inspect-token', { token }),
+  syncMeta: (user_token) => api.post('/fanpages/sync-meta', { user_token }),
 };
 
 export const reelApi = {
