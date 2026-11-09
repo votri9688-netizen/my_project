@@ -38,6 +38,8 @@ services:
       - redis
       - celery
       - beat
+    volumes:
+      - .:/app
 
   celery:
     build: .

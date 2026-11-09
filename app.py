@@ -2,6 +2,7 @@ import os
 from typing import List, Optional
 from datetime import datetime, date
 from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -20,6 +21,15 @@ app = FastAPI(
     title="Video Automation & Reels Publishing System",
     description="Automated system for Reel processing, Meta Graph API publishing, LLM captioning & Telegram alerts",
     version="1.0.0"
+)
+
+# Enable CORS for Next.js frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Prometheus Metrics Instrumentation
