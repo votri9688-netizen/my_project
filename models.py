@@ -26,6 +26,8 @@ class Fanpage(Base):
     access_token = Column(Text, nullable=True)  # AES-256 encrypted
     quota = Column("daily_quota", Integer, default=10)
     active = Column("is_active", Boolean, default=True)
+    source_url = Column(String(500), nullable=True)
+    backup_url = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     quota_logs = relationship("QuotaLog", back_populates="fanpage", cascade="all, delete-orphan")

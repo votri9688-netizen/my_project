@@ -33,6 +33,10 @@ export const reelApi = {
   list: (fanpageId) => api.get(`/reels/${fanpageId ? `?fanpage_id=${fanpageId}` : ''}`),
 };
 
+export const reportApi = {
+  insights: () => api.get('/reports/insights'),
+};
+
 export const authApi = {
   login: (username, password) => {
     const formData = new FormData();

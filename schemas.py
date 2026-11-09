@@ -58,8 +58,10 @@ class QuotaLogOut(BaseModel):
 class FanpageBase(BaseModel):
     name: str
     page_id: str
-    quota: int = 5
+    quota: int = 24
     active: bool = True
+    source_url: Optional[str] = None
+    backup_url: Optional[str] = None
 
 class FanpageCreate(FanpageBase):
     access_token: Optional[str] = None
@@ -69,6 +71,8 @@ class FanpageUpdate(BaseModel):
     quota: Optional[int] = None
     active: Optional[bool] = None
     access_token: Optional[str] = None
+    source_url: Optional[str] = None
+    backup_url: Optional[str] = None
 
 class Fanpage(FanpageBase):
     id: int

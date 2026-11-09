@@ -161,10 +161,138 @@ def update_fanpage(fanpage_id: int, fan_in: schemas.FanpageUpdate, db: Session =
         fan.active = fan_in.active
     if fan_in.access_token is not None:
         fan.access_token = encrypt_token(fan_in.access_token)
+    if fan_in.source_url is not None:
+        fan.source_url = fan_in.source_url
+    if fan_in.backup_url is not None:
+        fan.backup_url = fan_in.backup_url
         
     db.commit()
     db.refresh(fan)
     return format_fanpage(fan)
+
+# --- META GRAPH API REAL INSIGHTS ---
+@app.get("/reports/insights")
+def get_meta_insights(db: Session = Depends(get_db)):
+    """
+    Kéo số liệu THẬT trực tiếp từ Meta Graph API v19.0 cho 9 Fanpage
+    """
+    import httpx
+    fans = db.query(models.Fanpage).all()
+    
+    total_views = 0
+    total_reach = 0
+    total_engagement = 0
+    page_insights = []
+    top_reels = []
+
+    for f in fans:
+        token = decrypt_token(f.access_token) if f.access_token else ""
+        item = {
+            "page_id": f.page_id,
+            "name": f.name,
+            "views": 0,
+            "reach": 0,
+            "followers": 0,
+            "likes": 0,
+            "status": "pending",
+            "error_detail": None,
+            "reels_count": 0
+        }
+
+        if not token:
+            item["status"] = "missing_token"
+            item["error_detail"] = "Chưa cấu hình Access Token"
+            page_insights.append(item)
+            continue
+
+        try:
+            # 1. Fetch Page info & followers
+            with httpx.Client(timeout=10.0) as client:
+                res_info = client.get(
+                    f"https://graph.facebook.com/v19.0/{f.page_id}",
+                    params={"fields": "name,followers_count,fan_count", "access_token": token}
+                )
+                if res_info.status_code == 200:
+                    info_data = res_info.json()
+                    item["followers"] = info_data.get("followers_count", info_data.get("fan_count", 0))
+                    item["status"] = "active"
+                else:
+                    err_json = res_info.json().get("error", {})
+                    item["status"] = "error"
+                    item["error_detail"] = f"Meta Error: {err_json.get('message', res_info.text)}"
+
+                # 2. Fetch Reels list & stats
+                res_reels = client.get(
+                    f"https://graph.facebook.com/v19.0/{f.page_id}/video_reels",
+                    params={"fields": "id,description,created_time", "access_token": token, "limit": 10}
+                )
+                if res_reels.status_code == 200:
+                    reels_data = res_reels.json().get("data", [])
+                    item["reels_count"] = len(reels_data)
+                    for r in reels_data:
+                        top_reels.append({
+                            "id": r.get("id"),
+                            "page": f.name,
+                            "title": (r.get("description") or "Reel không có caption")[:60],
+                            "views": "N/A (Chờ Meta sync)",
+                            "reach": "N/A",
+                            "likes": "N/A",
+                            "date": r.get("created_time", "")[:10]
+                        })
+
+                # 3. Fetch Page Insights metrics
+                res_ins = client.get(
+                    f"https://graph.facebook.com/v19.0/{f.page_id}/insights",
+                    params={
+                        "metric": "page_impressions,page_post_engagements",
+                        "period": "day",
+                        "access_token": token
+                    }
+                )
+                if res_ins.status_code == 200:
+                    ins_data = res_ins.json().get("data", [])
+                    for m in ins_data:
+                        if m.get("name") == "page_impressions":
+                            val = m.get("values", [{}])[-1].get("value", 0)
+                            item["reach"] += val
+                            total_reach += val
+                        elif m.get("name") == "page_post_engagements":
+                            val = m.get("values", [{}])[-1].get("value", 0)
+                            item["likes"] += val
+                            total_engagement += val
+
+        except Exception as e:
+            item["status"] = "connection_error"
+            item["error_detail"] = str(e)
+
+        page_insights.append(item)
+
+    # Lấy thêm các bài Reel đã đăng thành công từ DB
+    db_reels = db.query(models.ReelPost).order_by(models.ReelPost.created_at.desc()).limit(10).all()
+    for dbr in db_reels:
+        fan_name = next((f.name for f in fans if f.id == dbr.fanpage_id), "Fanpage")
+        if dbr.fb_video_id:
+            top_reels.insert(0, {
+                "id": dbr.fb_video_id,
+                "page": fan_name,
+                "title": dbr.title or "Reel xuất bản",
+                "views": "Đang đồng bộ",
+                "reach": "Đang đồng bộ",
+                "likes": "Đang đồng bộ",
+                "date": dbr.created_at.strftime("%d/%m/%Y") if dbr.created_at else ""
+            })
+
+    return {
+        "summary": {
+            "total_views": total_views,
+            "total_reach": total_reach,
+            "total_engagement": total_engagement,
+            "active_pages": sum(1 for p in page_insights if p["status"] == "active"),
+            "total_pages": len(fans),
+        },
+        "page_insights": page_insights,
+        "top_reels": top_reels[:10],
+    }
 
 # --- REEL POSTS & PROCESSING ---
 @app.get("/reels/", response_model=List[schemas.ReelPostOut])
